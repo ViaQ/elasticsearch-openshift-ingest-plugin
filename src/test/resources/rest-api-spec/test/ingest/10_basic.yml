@@ -1,0 +1,18 @@
+---
+"Verify we have cluster with expectd number of nodes":
+  - do:
+      cluster.health:
+        wait_for_nodes: 2
+
+  - is_false:  timed_out
+  - gte:       { number_of_nodes:      2 }
+  - gte:       { number_of_data_nodes: 2 }
+
+---
+"Verify the cluster is *empty*":
+  - do:
+      indices.segments:
+        allow_no_indices: true
+
+  - match:   { _shards.total: 0}
+  - match:   { indices: {}}

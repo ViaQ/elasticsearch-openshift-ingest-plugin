@@ -1,0 +1,26 @@
+---
+"Define pipeline":
+  - do:
+      ingest.put_pipeline:
+        id: "testing_pipeline"
+        body:  >
+          {
+            "description": "_description",
+            "processors": [
+              {
+                "openshift-index_name-processor": {}
+              }
+            ]
+          }
+  - match: { acknowledged: true }
+
+  - do:
+      ingest.get_pipeline:
+        id: "testing_pipeline"
+  - match: { testing_pipeline.description: "_description" }
+  - match: { testing_pipeline.processors.0.openshift-index_name-processor: {} }
+
+  - do:
+      ingest.delete_pipeline:
+        id: "testing_pipeline"
+  - match: { acknowledged: true }

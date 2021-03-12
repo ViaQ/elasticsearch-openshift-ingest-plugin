@@ -1,0 +1,114 @@
+/*
+  Copyright 2021 Lukáš Vlček
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+*/
+
+buildscript {
+  ext {
+    es_version = version.replaceAll(/\.[0-9]+(|-SNAPSHOT)$/, "")
+  }
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+  }
+  dependencies {
+    classpath "org.elasticsearch.gradle:build-tools:${es_version}"
+    classpath group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.0'
+    classpath group: 'com.sun.xml.bind', name: 'jaxb-core', version: '2.3.0'
+    classpath group: 'com.sun.xml.bind', name: 'jaxb-impl', version: '2.3.0'
+    classpath group: 'javax.activation', name: 'activation', version: '1.1.1'
+  }
+}
+
+plugins {
+  id "java"
+  id "checkstyle"
+//  id "co.riiid.gradle" version "0.4.2" // GitHub integration
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'elasticsearch.esplugin'
+
+
+// dependency license check needs can be enabled
+dependencyLicenses.enabled = false
+
+// thirdparty audit needs can be enabled
+thirdPartyAudit.enabled = false
+
+// license header checks can be disabled
+// See https://github.com/vvanholl/elasticsearch-prometheus-exporter/issues/226#issuecomment-573660412
+licenseHeaders.enabled = false
+
+// No unit tests in this plugin
+unitTest.enabled = false
+//test.enabled = false  // for later ES versions
+
+// There are only integration tests
+integTestRunner.enabled = true
+
+// Temporary disable task :loggerUsageCheck
+//loggerUsageCheck.enabled = false
+
+// Temporary disable task :testingConventions
+//testingConventions.enabled = false
+
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+}
+
+ext {
+  versions << [
+          "elasticsearch": es_version,
+          "log4j"        : "2.11.1",
+          "junit"        : "4.12"
+  ]
+}
+
+configurations {
+  releaseJars {
+    extendsFrom runtime
+    exclude group: "org.elasticsearch"
+    exclude group: "com.fasterxml.jackson.core", module: "jackson-core"
+    exclude group: "org.apache.logging.log4j"
+  }
+}
+
+dependencies {
+  compile "org.elasticsearch:elasticsearch:${versions.elasticsearch}"
+  compile "org.apache.logging.log4j:log4j-api:${versions.log4j}"
+  testCompile "junit:junit:${versions.junit}"
+  releaseJars "${project.group}:${project.name}:${project.version}"
+}
+
+tasks.withType(JavaCompile) {
+  options.compilerArgs << "-Xlint:unchecked,deprecation"
+}
+
+esplugin {
+  licenseFile rootProject.file('LICENSE')
+  noticeFile rootProject.file('NOTICE.txt')
+  name 'openshift-ingest-plugin'
+  description 'Openshift Ingest processor plugin for Elasticsearch'
+  classname 'org.elasticsearch.ingest.openshift.OpenshiftIngestPlugin'
+}
+
+integTestCluster {
+  numNodes = 2
+  clusterName = "OpenshiftIngestProcessorITCluster"
+}
