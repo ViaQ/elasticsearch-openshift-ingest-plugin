@@ -101,7 +101,7 @@ tasks.withType(JavaCompile) {
 }
 
 esplugin {
-  licenseFile rootProject.file('LICENSE.txt')
+  licenseFile rootProject.file('LICENSE')
   noticeFile rootProject.file('NOTICE.txt')
   name 'openshift-ingest-plugin'
   description 'Openshift Ingest processor plugin for Elasticsearch'
