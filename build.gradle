@@ -104,7 +104,7 @@ esplugin {
   licenseFile rootProject.file('LICENSE')
   noticeFile rootProject.file('NOTICE.txt')
   name 'openshift-ingest-plugin'
-  description 'Openshift Ingest processor plugin for Elasticsearch'
+  description 'Openshift Ingest processor plugin for Elasticsearch to forward documents to schema based indices.'
   classname 'org.elasticsearch.ingest.openshift.OpenshiftIngestPlugin'
 }
 
