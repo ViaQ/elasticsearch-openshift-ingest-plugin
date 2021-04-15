@@ -19,19 +19,81 @@
             "description": "_description",
             "processors": [
               {
-                "openshift-index_name-processor": {
+                "openshift-ingestion-processor": {
                 }
               }
             ]
           }
   - match: { acknowledged: true }
-# "if": "ctx.schema != null"
 
   - do:
       ingest.get_pipeline:
         id: "openshift_schema"
   - match: { openshift_schema.description: "_description" }
-  - match: { openshift_schema.processors.0.openshift-index_name-processor: {} }
+  - match: { openshift_schema.processors.0.openshift-ingestion-processor: {} }
+
+# There are no indices having the -write suffix
+  - do:
+      catch: missing
+      indices.get:
+        index: app-foo-write
+
+  - do:
+      catch: missing
+      indices.get:
+        index: app-bar-write
+
+# Index document and pass it through this pipeline
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     1
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+
+  - do:
+      create:
+        index:  app-bar-write
+        type:   _doc
+        id:     2
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+# Give cluster a short moment to create aliases.
+# Waiting for condition that will not be met and timeout.
+  - do:
+      catch: request_timeout
+      cluster.health:
+        wait_for_nodes: 3
+        timeout: 1s
+
+  - match: { number_of_nodes: 2 }
+
+# There are initial indices and they are write-only
+  - do:
+      indices.get:
+        index: app-foo-00001,app-bar-00001
+
+  - is_true: app-foo-00001.aliases.app-foo-write.is_write_index
+  - is_true: app-bar-00001.aliases.app-bar-write.is_write_index
+
+# Clean up
+  - do:
+      ingest.delete_pipeline:
+        id: "openshift_schema"
+  - match: { acknowledged: true }
+
+  - do:
+      indices.delete:
+        index: app-foo-00001,app-bar-00001
+
+# Some older stuff, will be removed...
 
 # Create pipeline that will forward document to Openshift processor
 # if specific field is populated.
@@ -81,61 +143,3 @@
 #          index_patterns: [app-*]
 #          index:
 #            default_pipeline: openshift_schema
-
-# Index document and pass it through this pipeline
-  - do:
-      create:
-        index:  app-foo-write
-        type:   _doc
-        id:     1
-        body:   {
-          message: "Lorem ipsum dolor sit amet."
-        }
-        pipeline: openshift_schema
-
-
-  - do:
-      create:
-        index:  app-bar-write
-        type:   _doc
-        id:     2
-        body:   {
-          message: "Lorem ipsum dolor sit amet."
-        }
-        pipeline: openshift_schema
-
-###
-# Old stuff...
-###
-
-# Create testing index to see if ClusterStateListener can catch this
-#  - do:
-#      indices.create:
-#        include_type_name: false
-#        index: test_index1
-#        body:
-#          mappings:
-#            {}
-#  - match: { acknowledged: true }
-#  - match: { index: "test_index1"}
-#
-#  - do:
-#      indices.create:
-#        include_type_name: false
-#        index: test_index2
-#        body:
-#          mappings:
-#            {}
-#  - match: { acknowledged: true }
-#  - match: { index: "test_index2"}
-#
-#  - do:
-#      indices.delete:
-#        index: test_index*
-#  - match: { acknowledged: true }
-
-# Delete the pipeline
-  - do:
-      ingest.delete_pipeline:
-        id: "openshift_schema"
-  - match: { acknowledged: true }

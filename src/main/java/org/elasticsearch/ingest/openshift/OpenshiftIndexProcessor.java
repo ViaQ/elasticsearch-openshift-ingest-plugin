@@ -48,7 +48,7 @@ import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateIn
 public final class OpenshiftIndexProcessor extends AbstractProcessor {
     private static final Logger logger = LogManager.getLogger(OpenshiftIndexProcessor.class);
 
-    public static final String TYPE = "openshift-index_name-processor";
+    public static final String TYPE = "openshift-ingestion-processor";
 
     // Local cache of known indices and their aliases
     private Map<String, AliasOrIndex> latestAliasAndIndicesLookup;
