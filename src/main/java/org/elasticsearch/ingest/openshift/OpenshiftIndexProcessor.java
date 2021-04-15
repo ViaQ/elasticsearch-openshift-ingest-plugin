@@ -74,20 +74,6 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
             return;
         }
 
-        /*
-        We do not know yet if we want to act based upon these index specific lists because
-        they don't tell us if any alias was updated for any of existing indices.
-        Hence we still need to investigate full index list from the cluster MD anyway.
-
-        for (String index: event.indicesCreated()) {
-            logger.debug("+ New index: {}", index);
-        }
-
-        for (Index index: event.indicesDeleted()) {
-            logger.debug("- Deleted index: {}", index);
-        }
-        */
-
         ClusterState eventState = event.state();
 
         synchronized (OpenshiftIndexProcessor.class) {
@@ -104,7 +90,7 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
 
         String aliasName = ingestDocument.getFieldValue("_index", String.class, Boolean.TRUE);
 
-        // We assume that the forwarder will always send documents to the write-only alias.
+        // We assume that the forwarder will always send documents to the write-alias.
         // If the target index name does not end with -write then it is not related to our
         // data flow and we do nothing.
         if (aliasName != null && aliasName.endsWith("-write")) {

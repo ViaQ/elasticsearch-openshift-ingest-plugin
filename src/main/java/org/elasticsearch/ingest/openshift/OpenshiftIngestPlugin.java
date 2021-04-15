@@ -45,8 +45,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
-import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.extractSchemaFromIndex;
-import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getIndicesWithoutWriteAlias;
+import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getInitialIndicesWithoutWriteAlias;
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateWriteAliasName;
 
 /**
@@ -117,17 +116,17 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
              */
             if (event.localNodeMaster()) {
 
-                List<String> indices = getIndicesWithoutWriteAlias(latestAliasAndIndicesLookup);
+                List<String> indices = getInitialIndicesWithoutWriteAlias(latestAliasAndIndicesLookup);
                 if (!indices.isEmpty()) {
                     IndicesAliasesRequestBuilder iarb = client.admin().indices().prepareAliases();
 
                     for (String index: indices) {
-                        String schema = extractSchemaFromIndex(index);
 
-                        if (!schema.isEmpty()) {
+                        String writeAlias = generateWriteAliasName(index);
+                        if (!writeAlias.trim().isEmpty()) {
                             iarb.addAliasAction(AliasActions.add()
                                     .index(index)
-                                    .alias(generateWriteAliasName(schema))
+                                    .alias(writeAlias)
                                     .writeIndex(true));
                         }
                     }
