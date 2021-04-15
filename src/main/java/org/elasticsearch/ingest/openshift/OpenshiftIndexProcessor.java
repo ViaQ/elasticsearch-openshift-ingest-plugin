@@ -16,24 +16,20 @@
 
 package org.elasticsearch.ingest.openshift;
 
-import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.ingest.AbstractProcessor;
 import org.elasticsearch.ingest.IngestDocument;
 import org.elasticsearch.ingest.IngestService;
 import org.elasticsearch.ingest.Processor;
+import org.elasticsearch.rest.action.admin.indices.AliasesNotFoundException;
 
 import java.util.Collections;
 import java.util.Map;
 
-import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getIndicesAndAliases;
-import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getWriteIndexAlias;
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateInitialIndexName;
 
 /**
@@ -55,14 +51,14 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
     public static final String TYPE = "openshift-index_name-processor";
 
     // Local cache of known indices and their aliases
-    private Map<String, Iterable<ObjectObjectCursor<String, AliasMetaData>>> actualIndices;
+    private Map<String, AliasOrIndex> latestAliasAndIndicesLookup;
     private long clusterStateVersion = Long.MIN_VALUE;
 
     OpenshiftIndexProcessor(final String tag, final IngestService ingestService) {
         super(tag);
 
         // Init the internal indices map.
-        this.actualIndices = Collections.emptyMap();
+        this.latestAliasAndIndicesLookup = Collections.emptyMap();
 
         // ClusterEventListener is able to listen to changes in ClusterState; by this we listen to changes
         // in indices and their aliases.
@@ -96,8 +92,7 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
 
         synchronized (OpenshiftIndexProcessor.class) {
             if (eventState.version() > clusterStateVersion) {
-                ImmutableOpenMap<String, IndexMetaData> actualIndices = eventState.metaData().getIndices();
-                this.actualIndices = getIndicesAndAliases(actualIndices);
+                latestAliasAndIndicesLookup = eventState.metaData().getAliasAndIndexLookup();
                 clusterStateVersion = eventState.version();
             }
         }
@@ -106,25 +101,23 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
 
     @Override
     public IngestDocument execute(IngestDocument ingestDocument) {
-//        logger.log(Level.INFO, "execute: Getting cluster service {}", this.clusterService);
 
-//        this.clusterService.localNode();
-//        logger.log(Level.INFO, "LocalNode {}", this.clusterService.localNode());
-//        logger.log(Level.INFO, "LocalNode is ingestNode? {}", this.clusterService.localNode().isIngestNode());
+        String aliasName = ingestDocument.getFieldValue("_index", String.class, Boolean.TRUE);
 
-        if (ingestDocument.hasField("schema")) {
-            String schemaValue = ingestDocument.getFieldValue("schema", String.class, Boolean.TRUE);
-            // TODO[lvlcek]: checking invalid and empty values in schema, do we need to make this condition more robust?
-            if (!schemaValue.trim().isEmpty()) {
-                AliasMetaData alias = getWriteIndexAlias(schemaValue, this.actualIndices);
-                if (alias != null) {
-                    ingestDocument.setFieldValue("_index", alias);
-                } else {
-                    // Write alias not found.
-                    // This can be because OpenshiftIngestPlugin did not have a chance to create it yet.
-                    // So let's continue and write it into an index instead (a fall back-strategy).
-                    String index = generateInitialIndexName(schemaValue);
-                    ingestDocument.setFieldValue("_index", index);
+        // We assume that the forwarder will always send documents to the write-only alias.
+        // If the target index name does not end with -write then it is not related to our
+        // data flow and we do nothing.
+        if (aliasName != null && aliasName.endsWith("-write")) {
+            // If the write-alias is not known yet (does not exist) then
+            // we change the target to be the initial index
+            if (!latestAliasAndIndicesLookup.containsKey(aliasName)) {
+                String index = generateInitialIndexName(aliasName);
+                ingestDocument.setFieldValue("_index", index);
+            } else {
+                // What to do if the write-alias target exists but it is not actually an alias?
+                if (!latestAliasAndIndicesLookup.get(aliasName).isAlias()) {
+                    // This needs to be discussed.
+                    throw new AliasesNotFoundException(aliasName);
                 }
             }
         }

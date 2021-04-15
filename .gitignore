@@ -1,6 +1,7 @@
 # There is a file left in the <ROOT> after `gradle build` or `gradle check`. This is expected.
 # https://discuss.elastic.co/t/leftovers-after-integtestrunner-in-root/152610
 \.local*-integTestRunner-execution-times.log
+\.local*-unitTestRunner-execution-times.log
 
 # Eclipse
 .classpath

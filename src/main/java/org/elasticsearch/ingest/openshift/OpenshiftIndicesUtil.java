@@ -16,15 +16,18 @@
 
 package org.elasticsearch.ingest.openshift;
 
+import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 
-import java.util.Collections;
+//import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public abstract class OpenshiftIndicesUtil {
 
@@ -94,8 +97,29 @@ public abstract class OpenshiftIndicesUtil {
         return null;
     }
 
-    public static List<String> getIndicesWithoutWriteAlias(final Map<String, Iterable<ObjectObjectCursor<String, AliasMetaData>>> indices) {
-        // TODO[lvlcek]
-        return Collections.emptyList();
+    /**
+     *
+     * @param indices Map of indices and aliases. This is expected to be the actual cache from Cluster State change event.
+     * @return Names of indices that do not have one (and only one) write alias.
+     */
+    public static List<String> getIndicesWithoutWriteAlias(final Map<String, AliasOrIndex> indices) {
+        return indices.entrySet().stream()
+                .filter(x -> {
+                        if(!x.getValue().isAlias()) {
+                            IndexMetaData index = ((AliasOrIndex.Index)x.getValue()).getIndex();
+                            // if ^^ breaks (because of ES version upgrade) then you can use x.getValue().getIndices().get(0)
+                            int writeAliases = 0;
+                            for (ObjectCursor<AliasMetaData> md: index.getAliases().values()) {
+                                if (md.value.writeIndex()) {
+                                    writeAliases += 1;
+                                }
+                            }
+                            return writeAliases < 1;
+                        } else {
+                            return false;
+                        }
+                        })
+                .map(x->x.getKey())
+                .collect(Collectors.toList());
     }
 }

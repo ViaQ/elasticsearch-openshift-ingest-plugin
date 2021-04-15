@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -32,10 +31,8 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.env.Environment;
@@ -49,7 +46,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.extractSchemaFromIndex;
-import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getIndicesAndAliases;
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getIndicesWithoutWriteAlias;
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateWriteAliasName;
 
@@ -64,7 +60,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
     private static final Logger logger = LogManager.getLogger(OpenshiftIngestPlugin.class);
 
     // Local cache of known indices and their aliases
-    private Map<String, Iterable<ObjectObjectCursor<String, AliasMetaData>>> actualIndices;
+    private Map<String, AliasOrIndex> latestAliasAndIndicesLookup;
     private long clusterStateVersion = Long.MIN_VALUE;
 
     @Override
@@ -81,7 +77,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
                                                NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry) {
 
         // Init the internal indices map.
-        this.actualIndices = Collections.emptyMap();
+        this.latestAliasAndIndicesLookup = Collections.emptyMap();
 
         clusterService.addListener(new IndicesUpdatedListener(client));
         return Collections.emptyList();
@@ -106,8 +102,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
 
             synchronized (OpenshiftIngestPlugin.class) {
                 if (eventState.version() > clusterStateVersion) {
-                    ImmutableOpenMap<String, IndexMetaData> actualIdx = eventState.metaData().getIndices();
-                    actualIndices = getIndicesAndAliases(actualIdx);
+                    latestAliasAndIndicesLookup = eventState.metaData().getAliasAndIndexLookup();
                     clusterStateVersion = eventState.version();
                 }
             }
@@ -122,7 +117,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
              */
             if (event.localNodeMaster()) {
 
-                List<String> indices = getIndicesWithoutWriteAlias(actualIndices);
+                List<String> indices = getIndicesWithoutWriteAlias(latestAliasAndIndicesLookup);
                 if (!indices.isEmpty()) {
                     IndicesAliasesRequestBuilder iarb = client.admin().indices().prepareAliases();
 
@@ -145,6 +140,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
 
                         @Override
                         public void onFailure(Exception e) {
+                            // TODO[lvlcek]: If there is an exception like "Alias already exists" then we need to ignore it
                             logger.info("Error occurred when adding write aliases for the following indices: {}. {}", indices, e);
                         }
                     });

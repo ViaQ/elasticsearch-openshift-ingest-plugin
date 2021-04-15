@@ -54,7 +54,7 @@ thirdPartyAudit.enabled = false
 licenseHeaders.enabled = false
 
 // No unit tests in this plugin
-unitTest.enabled = false
+unitTest.enabled = true
 //test.enabled = false  // for later ES versions
 
 // There are only integration tests
