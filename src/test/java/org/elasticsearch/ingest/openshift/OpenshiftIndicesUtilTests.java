@@ -31,15 +31,15 @@ import java.util.TreeMap;
 public class OpenshiftIndicesUtilTests extends ESTestCase {
 
     public void testGenerateInitialIndexName() {
-        assertEquals("app-00001", OpenshiftIndicesUtil.generateInitialIndexName("app-write"));
-        assertEquals("alias-write-00001", OpenshiftIndicesUtil.generateInitialIndexName("alias-write-write"));
-        assertEquals("-00001", OpenshiftIndicesUtil.generateInitialIndexName("-write"));
+        assertEquals("app-000001", OpenshiftIndicesUtil.generateInitialIndexName("app-write"));
+        assertEquals("alias-write-000001", OpenshiftIndicesUtil.generateInitialIndexName("alias-write-write"));
+        assertEquals("-000001", OpenshiftIndicesUtil.generateInitialIndexName("-write"));
     }
 
     public void testGenerateWriteAliasName() {
-        assertEquals("app-write", OpenshiftIndicesUtil.generateWriteAliasName("app-00001"));
-        assertEquals("foo-write-write", OpenshiftIndicesUtil.generateWriteAliasName("foo-write-00001"));
-        assertEquals("-write", OpenshiftIndicesUtil.generateWriteAliasName("-00001"));
+        assertEquals("app-write", OpenshiftIndicesUtil.generateWriteAliasName("app-000001"));
+        assertEquals("foo-write-write", OpenshiftIndicesUtil.generateWriteAliasName("foo-write-000001"));
+        assertEquals("-write", OpenshiftIndicesUtil.generateWriteAliasName("-000001"));
     }
 
     public void testIndicesWithoutWriteIndex() {
@@ -47,37 +47,37 @@ public class OpenshiftIndicesUtilTests extends ESTestCase {
         assertTrue(indices.isEmpty());
 
         Map<String, AliasOrIndex> im = new TreeMap<>();
-        im.put("index1-00001", new AliasOrIndex.Index(createIndexMetaData("index1-00001")));
-        im.put("index2-00001", new AliasOrIndex.Index(createIndexMetaData("index2-00001",
+        im.put("index1-000001", new AliasOrIndex.Index(createIndexMetaData("index1-000001")));
+        im.put("index2-000001", new AliasOrIndex.Index(createIndexMetaData("index2-000001",
                 new AliasInfo("alias1", false),
                 new AliasInfo("alias2", false))));
-        im.put("index3-00001", new AliasOrIndex.Index(createIndexMetaData("index3-00001",
+        im.put("index3-000001", new AliasOrIndex.Index(createIndexMetaData("index3-000001",
                 new AliasInfo("alias1", true))));
 
-        im.put("index4-00001", new AliasOrIndex.Index(createIndexMetaData("index4-00001",
+        im.put("index4-000001", new AliasOrIndex.Index(createIndexMetaData("index4-000001",
                 new AliasInfo("alias1", true),
                 new AliasInfo("alias2", true))));
 
-        im.put("alias1", new AliasOrIndex.Alias(createAliasMetaData("alias1"), createIndexMetaData("index1-00001")));
+        im.put("alias1", new AliasOrIndex.Alias(createAliasMetaData("alias1"), createIndexMetaData("index1-000001")));
 
         indices = OpenshiftIndicesUtil.getInitialIndicesWithoutWriteAlias(im);
 
         assertEquals(indices.size(), 2);
-        assertTrue(indices.contains("index1-00001"));
-        assertTrue(indices.contains("index2-00001"));
+        assertTrue(indices.contains("index1-000001"));
+        assertTrue(indices.contains("index2-000001"));
 
         im = new TreeMap<>();
-        im.put("index1-00001", new AliasOrIndex.Index(createIndexMetaData("index1-00001")));
-        im.put("index2-00002", new AliasOrIndex.Index(createIndexMetaData("index2-00002",
+        im.put("index1-000001", new AliasOrIndex.Index(createIndexMetaData("index1-000001")));
+        im.put("index2-000002", new AliasOrIndex.Index(createIndexMetaData("index2-000002",
                 new AliasInfo("alias1", false),
                 new AliasInfo("alias2", false))));
-        im.put("index3-00003", new AliasOrIndex.Index(createIndexMetaData("index3-00003",
+        im.put("index3-000003", new AliasOrIndex.Index(createIndexMetaData("index3-000003",
                 new AliasInfo("alias1", true))));
 
         indices = OpenshiftIndicesUtil.getInitialIndicesWithoutWriteAlias(im);
 
         assertEquals(indices.size(), 1);
-        assertTrue(indices.contains("index1-00001"));
+        assertTrue(indices.contains("index1-000001"));
     }
 
     private AliasMetaData createAliasMetaData(String alias) {

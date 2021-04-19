@@ -33,7 +33,7 @@ public abstract class OpenshiftIndicesUtil {
      * @return initial index name
      */
     public static String generateInitialIndexName(final String aliasName) {
-        return aliasName.replaceAll("-write$", "-00001");
+        return aliasName.replaceAll("-write$", "-000001");
     }
 
     /**
@@ -42,11 +42,11 @@ public abstract class OpenshiftIndicesUtil {
      * @return write-alias
      */
     public static String generateWriteAliasName(final String index) {
-        return index.replaceAll("-00001$", "-write");
+        return index.replaceAll("-000001$", "-write");
     }
 
     public static boolean isInitialIndex(final String index) {
-        return index.endsWith("-00001");
+        return index.endsWith("-000001");
     }
 
     /**
