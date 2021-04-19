@@ -1,0 +1,160 @@
+---
+"Define pipeline, execute indexing and do full index rollover cycle.":
+  # Turn on logging in our package
+  # Logs are found in "build/cluster/integTestCluster node#/elasticsearch-6.8.6/logs"
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            logger.org.elasticsearch.ingest.openshift: "TRACE"
+        flat_settings: true
+  - match: { acknowledged: true }
+
+  # Create pipeline with our Openshift processor
+  - do:
+      ingest.put_pipeline:
+        id: "openshift_schema"
+        body:  >
+          {
+            "description": "_description",
+            "processors": [
+              {
+                "openshift-ingestion-processor": {
+                }
+              }
+            ]
+          }
+  - match: { acknowledged: true }
+
+  - do:
+      ingest.get_pipeline:
+        id: "openshift_schema"
+  - match: { openshift_schema.description: "_description" }
+  - match: { openshift_schema.processors.0.openshift-ingestion-processor: {} }
+
+  # Verify the cluster has no indices
+  - do:
+      indices.segments:
+        allow_no_indices: true
+
+  - match:   { _shards.total: 0 }
+  - match:   { indices: {} }
+
+
+  # Index documents and pass it through this pipeline
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     1
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     2
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     3
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  # Without refresh the test can fail because it does not see 3 docs in the index.
+  - do:
+      indices.refresh:
+        index: []
+
+  # Give cluster a short moment to create aliases.
+  # Waiting for condition that will not be met and timeout.
+  - do:
+      catch: request_timeout
+      cluster.health:
+        wait_for_nodes: 3
+        timeout: 500ms
+
+  - match: { number_of_nodes: 2 }
+
+  # Execute alias rollover
+  - do:
+      indices.rollover:
+        alias: "app-foo-write"
+        wait_for_active_shards: 1
+        body:
+          conditions:
+            max_docs: 3
+
+  - match: { old_index: app-foo-000001 }
+  - match: { new_index: app-foo-000002 }
+  - match: { rolled_over: true }
+  - match: { conditions: { "[max_docs: 3]": true } }
+
+  # Continue indexing more documents.
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     4
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     5
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  - do:
+      indices.refresh:
+        index: []
+
+  # Verify that new documents were indexed into new index.
+  - do:
+      count:
+        index: app-foo-000001
+
+  - match: { count: 3 }
+
+  - do:
+      count:
+        index: app-foo-000002
+
+  - match: { count: 2 }
+
+  # Verify that write alias was switch correctly.
+  # See: https://www.elastic.co/guide/en/elasticsearch/reference/6.8/indices-rollover-index.html
+  - do:
+      indices.get:
+        index: app-foo-*
+
+  - is_false: app-foo-000001.aliases.app-foo-write.is_write_index
+  - is_true:  app-foo-000002.aliases.app-foo-write.is_write_index
+
+  # =============================
+  # Clean up
+  - do:
+      ingest.delete_pipeline:
+        id: "openshift_schema"
+  - match: { acknowledged: true }
+
+  - do:
+      indices.delete:
+        index: app-foo-*
