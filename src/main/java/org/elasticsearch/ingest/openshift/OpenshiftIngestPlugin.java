@@ -49,7 +49,7 @@ import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.getInitial
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateWriteAliasName;
 
 /**
- * The purpose of this plugin is to investigate list of actual indices (taken from cluster meta data updates)
+ * The purpose of this plugin is to investigate changes in indices and aliases (taken from cluster meta data updates)
  * and identify schema indices that are missing the write-alias flag. If there are such indices it creates the
  * Index Aliases request to handle it.
  * See: https://www.elastic.co/guide/en/elasticsearch/reference/6.8/indices-aliases.html

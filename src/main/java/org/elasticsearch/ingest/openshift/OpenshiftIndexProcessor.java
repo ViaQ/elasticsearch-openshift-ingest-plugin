@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateInitialIndexName;
+import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.hasDataModelPrefix;
 
 /**
  * Openshift ingestion processor modify the "_index" value of incoming document. The function of this processor
@@ -38,12 +39,7 @@ import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.generateIn
  *
  * Notice Elasticsearch can instantiate several instances of this plugin per single ES node.
  *
- * Every instance of this plugin keeps its own local list of actual indices and aliases.
- * (TODO: The list is limited to indices matching specific index name pattern. Both the index name pattern
- * and corresponding write-alias is defined by Openshift naming policy for schema based log producers. See: ...TBD).
- *
- * Every instance of this plugin subscribes to cluster changes events and pulls/updates list of indices and its aliases
- * from it and keeps its own local list of actual indices and aliases.
+ * Every instance of this plugin keeps its own lookup table of latest indices/aliases.
  */
 public final class OpenshiftIndexProcessor extends AbstractProcessor {
     private static final Logger logger = LogManager.getLogger(OpenshiftIndexProcessor.class);
@@ -63,9 +59,6 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
         // ClusterEventListener is able to listen to changes in ClusterState; by this we listen to changes
         // in indices and their aliases.
         ingestService.getClusterService().addListener(csl);
-
-        // logger.log(Level.INFO, "CTOR: Getting cluster service {}", ingestService.getClusterService());
-        // logger.log(Level.INFO, "CTOR: Local node {}", ingestService.getClusterService().localNode());  // Exception!
     }
 
     private ClusterStateListener csl = event -> {
@@ -91,9 +84,8 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
         String aliasName = ingestDocument.getFieldValue("_index", String.class, Boolean.TRUE);
 
         // We assume that the forwarder will always send documents to the write-alias.
-        // If the target index name does not end with -write then it is not related to our
-        // data flow and we do nothing.
-        if (aliasName != null && aliasName.endsWith("-write")) {
+        // Skip everything that does not seem to be part of data model.
+        if (aliasName != null && hasDataModelPrefix(aliasName) && aliasName.endsWith("-write")) {
             // If the write-alias is not known yet (does not exist) then
             // we change the target to be the initial index
             if (!latestAliasAndIndicesLookup.containsKey(aliasName)) {

@@ -50,6 +50,17 @@ public abstract class OpenshiftIndicesUtil {
     }
 
     /**
+     * Use this function to filter out all indices that do not follow the data model naming schema.
+     * This is to make sure that we do not mess-up other indices like kibana ...
+     *
+     * @param index index name
+     * @return true iff the index name follows the data model naming schema
+     */
+    public static boolean hasDataModelPrefix(final String index) {
+        return index.startsWith("app-") || index.startsWith("infra-") || index.startsWith("audit-");
+    }
+
+    /**
      *
      * @param indices Map of indices and aliases. This is expected to be the actual cache from Cluster State change event.
      * @return Names of initial indices that have no write-alias.
@@ -61,6 +72,7 @@ public abstract class OpenshiftIndicesUtil {
                             IndexMetaData imd = ((AliasOrIndex.Index)x.getValue()).getIndex();
                             // if ^^ breaks (because of ES version upgrade) then you can use x.getValue().getIndices().get(0)
                             if (!isInitialIndex(imd.getIndex().getName())) return false;
+                            if (!hasDataModelPrefix(imd.getIndex().getName())) return false;
                             for (ObjectCursor<AliasMetaData> md: imd.getAliases().values()) {
                                 if (md.value.writeIndex()) {
                                     return false;
