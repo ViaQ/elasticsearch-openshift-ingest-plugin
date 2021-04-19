@@ -10,7 +10,7 @@
         flat_settings: true
   - match: { acknowledged: true }
 
-  # Create pipeline with our Openshift processor
+  # Create simple pipeline with our Openshift processor
   - do:
       ingest.put_pipeline:
         id: "openshift_schema"

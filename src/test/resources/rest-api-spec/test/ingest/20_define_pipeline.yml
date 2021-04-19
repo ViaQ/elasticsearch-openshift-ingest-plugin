@@ -10,7 +10,7 @@
         flat_settings: true
   - match: { acknowledged: true }
 
-  # Create pipeline with our Openshift processor
+  # Create simple pipeline with our Openshift processor
   - do:
       ingest.put_pipeline:
         id: "openshift_schema"
@@ -31,6 +31,26 @@
         id: "openshift_schema"
   - match: { openshift_schema.description: "_description" }
   - match: { openshift_schema.processors.0.openshift-ingestion-processor: {} }
+
+  # Just FYI, ES integration testing framework does not seem to support pipelines with more complex conditions.
+  # Like the following one that will forward document to Openshift processor only iff specific condition is met.
+  # Still it is possible to create such pipelines in real ES cluster.
+  #
+  #  - do:
+  #      ingest.put_pipeline:
+  #        id: "my_default_pipeline"
+  #        body: >
+  #          {
+  #            "processors": [
+  #              {
+  #                "pipeline": {
+  #                  "name": "openshift_schema",
+  #                  "if": "ctx.schema != null"
+  #                }
+  #              }
+  #            ]
+  #          }
+  #  - match: { acknowledged: true }
 
   # There are no indices having the -write suffix
   - do:
@@ -93,54 +113,3 @@
   - do:
       indices.delete:
         index: app-foo-000001,app-bar-000001
-
-# Some older stuff, will be removed...
-
-# Create pipeline that will forward document to Openshift processor
-# if specific field is populated.
-# !!! This does not work for ES testing framework, why?
-#  - do:
-#      ingest.put_pipeline:
-#        id: "my_default_pipeline"
-#        body: >
-#          {
-#            "processors": [
-#              {
-#                "pipeline": {
-#                  "name": "openshift_schema",
-#                  "if": "ctx.schema != null"
-#                }
-#              }
-#            ]
-#          }
-#  - match: { acknowledged: true }
-
-
-# Index template that will create indices with specific write and read aliases using {index} placeholder
-# See: https://www.elastic.co/guide/en/elasticsearch/reference/6.8/indices-templates.html
-# !!! This is not supported in ES < 7.11
-# !!! See: https://github.com/elastic/elasticsearch/issues/52152#issuecomment-586748585 (Imotov opens a ticker for this)
-# !!! See: https://github.com/elastic/elasticsearch/pull/52306 (community fix, closed)
-# !!! See: https://github.com/elastic/elasticsearch/pull/63162 (fix for ES 7.11)
-#  - do:
-#      indices.put_template:
-#        include_type_name: false
-#        name: domain_aliases
-#        body:
-#          index_patterns: [app-schema-*-0000*]
-#          aliases:
-#            "{index}-write": {
-#              is_write_index: true
-#            }  # ->  app-schema-foo-00001-write
-#            "{index}-read": {}   # ->  app-schema-foo-00001-read
-
-# Index template to be applied on all incoming documents to pass them through default pipeline
-# See: https://www.elastic.co/guide/en/elasticsearch/reference/6.8/index-modules.html#dynamic-index-settings
-#  - do:
-#      indices.put_template:
-#        include_type_name: false
-#        name: set_defualt_pipeline
-#        body:
-#          index_patterns: [app-*]
-#          index:
-#            default_pipeline: openshift_schema
