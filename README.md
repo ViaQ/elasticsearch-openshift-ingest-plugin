@@ -93,10 +93,10 @@ of Elasticsearch.
 
 The gradle `esplugin` brings the following:
 - [plugin descriptor file](https://www.elastic.co/guide/en/elasticsearch/plugins/6.8/plugin-authors.html#_plugin_descriptor_file) automation
-- configurable integration [testing over REST API](https://github.com/elastic/elasticsearch/blob/v6.8.6/rest-api-spec/src/main/resources/rest-api-spec/test/README.asciidoc) (great collection of REST API integration tests can
+- configurable integration [testing over REST API](https://github.com/elastic/elasticsearch/blob/v6.8.1/rest-api-spec/src/main/resources/rest-api-spec/test/README.asciidoc) (great collection of REST API integration tests can
 be found [here](https://github.com/elastic/elasticsearch/blob/v6.8.6/rest-api-spec/src/main/resources/rest-api-spec/test/)). 
 
-For Elasticsearch 6.8.6 it is:
+For Elasticsearch 6.8.1 it is:
 
 - JDK12
 - Gradle 5.5.1
