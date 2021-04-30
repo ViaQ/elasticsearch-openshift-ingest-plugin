@@ -1,14 +1,26 @@
 ---
-"Define pipeline":
+"Define pipeline and execute example document indexing. Checking that new indices and write-aliases are created.":
+  # Turn on logging in our package
+  # Logs are found in "build/cluster/integTestCluster node#/elasticsearch-6.8.6/logs"
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            logger.org.elasticsearch.ingest.openshift: "TRACE"
+        flat_settings: true
+  - match: { acknowledged: true }
+
+  # Create simple pipeline with our Openshift processor
   - do:
       ingest.put_pipeline:
-        id: "testing_pipeline"
+        id: "openshift_schema"
         body:  >
           {
             "description": "_description",
             "processors": [
               {
-                "openshift-index_name-processor": {}
+                "openshift-ingestion-processor": {
+                }
               }
             ]
           }
@@ -16,11 +28,88 @@
 
   - do:
       ingest.get_pipeline:
-        id: "testing_pipeline"
-  - match: { testing_pipeline.description: "_description" }
-  - match: { testing_pipeline.processors.0.openshift-index_name-processor: {} }
+        id: "openshift_schema"
+  - match: { openshift_schema.description: "_description" }
+  - match: { openshift_schema.processors.0.openshift-ingestion-processor: {} }
+
+  # Just FYI, ES integration testing framework does not seem to support pipelines with more complex conditions.
+  # Like the following one that will forward document to Openshift processor only iff specific condition is met.
+  # Still it is possible to create such pipelines in real ES cluster.
+  #
+  #  - do:
+  #      ingest.put_pipeline:
+  #        id: "my_default_pipeline"
+  #        body: >
+  #          {
+  #            "processors": [
+  #              {
+  #                "pipeline": {
+  #                  "name": "openshift_schema",
+  #                  "if": "ctx.schema != null"
+  #                }
+  #              }
+  #            ]
+  #          }
+  #  - match: { acknowledged: true }
+
+  # There are no indices having the -write suffix
+  - do:
+      catch: missing
+      indices.get:
+        index: app-foo-write
 
   - do:
+      catch: missing
+      indices.get:
+        index: app-bar-write
+
+  # Index document and pass it through this pipeline
+  - do:
+      create:
+        index:  app-foo-write
+        type:   _doc
+        id:     1
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+
+  - do:
+      create:
+        index:  app-bar-write
+        type:   _doc
+        id:     2
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  # Give cluster a short moment to create aliases.
+  # Waiting for condition that will not be met and timeout.
+  - do:
+      catch: request_timeout
+      cluster.health:
+        wait_for_nodes: 3
+        timeout: 500ms
+
+  - match: { number_of_nodes: 2 }
+
+  # There are initial indices and they are write-only
+  - do:
+      indices.get:
+        index: app-foo-000001,app-bar-000001
+
+  - is_true: app-foo-000001.aliases.app-foo-write.is_write_index
+  - is_true: app-bar-000001.aliases.app-bar-write.is_write_index
+
+  # =============================
+  # Clean up
+  - do:
       ingest.delete_pipeline:
-        id: "testing_pipeline"
+        id: "openshift_schema"
   - match: { acknowledged: true }
+
+  - do:
+      indices.delete:
+        index: app-foo-000001,app-bar-000001

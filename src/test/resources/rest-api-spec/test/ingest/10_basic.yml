@@ -14,5 +14,5 @@
       indices.segments:
         allow_no_indices: true
 
-  - match:   { _shards.total: 0}
-  - match:   { indices: {}}
+  - match:   { _shards.total: 0 }
+  - match:   { indices: {} }
