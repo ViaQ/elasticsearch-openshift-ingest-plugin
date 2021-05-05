@@ -99,7 +99,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
 
             ClusterState eventState = event.state();
 
-            synchronized (OpenshiftIngestPlugin.class) {
+            synchronized (this) {
                 if (eventState.version() > clusterStateVersion) {
                     latestAliasAndIndicesLookup = eventState.metaData().getAliasAndIndexLookup();
                     clusterStateVersion = eventState.version();
