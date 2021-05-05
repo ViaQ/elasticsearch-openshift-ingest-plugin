@@ -69,7 +69,7 @@ public final class OpenshiftIndexProcessor extends AbstractProcessor {
 
         ClusterState eventState = event.state();
 
-        synchronized (OpenshiftIndexProcessor.class) {
+        synchronized (this) {
             if (eventState.version() > clusterStateVersion) {
                 latestAliasAndIndicesLookup = eventState.metaData().getAliasAndIndexLookup();
                 clusterStateVersion = eventState.version();
