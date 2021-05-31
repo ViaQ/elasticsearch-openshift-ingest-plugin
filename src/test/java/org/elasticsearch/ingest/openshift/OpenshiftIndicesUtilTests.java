@@ -39,12 +39,16 @@ public class OpenshiftIndicesUtilTests extends ESTestCase {
         assertEquals("app-000001", generateInitialIndexName("app-write"));
         assertEquals("alias-write-000001", generateInitialIndexName("alias-write-write"));
         assertEquals("-000001", generateInitialIndexName("-write"));
+
+        assertEquals("app-000001", generateInitialIndexName("   app-write  "));
     }
 
     public void testGenerateWriteAliasName() {
         assertEquals("app-write", generateWriteAliasName("app-000001"));
         assertEquals("foo-write-write", generateWriteAliasName("foo-write-000001"));
         assertEquals("-write", generateWriteAliasName("-000001"));
+
+        assertEquals("app-write", generateWriteAliasName("   app-000001  "));
     }
 
     public void testDataModelPrefix() {

@@ -6,7 +6,9 @@
       cluster.put_settings:
         body:
           transient:
-            logger.org.elasticsearch.ingest.openshift: "TRACE"
+            logger:
+              org.elasticsearch.ingest.openshift: "TRACE"
+              org.elasticsearch.action: "DEBUG"
         flat_settings: true
   - match: { acknowledged: true }
 

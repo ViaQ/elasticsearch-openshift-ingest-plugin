@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -102,6 +103,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
             synchronized (this) {
                 if (eventState.version() > clusterStateVersion) {
                     latestAliasAndIndicesLookup = eventState.metaData().getAliasAndIndexLookup();
+                    logger.trace("New version of metadata: {} > {}", eventState.version(), clusterStateVersion);
                     clusterStateVersion = eventState.version();
                 }
             }
@@ -116,6 +118,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
              */
             if (event.localNodeMaster()) {
 
+                logger.trace("Master node is handling new metadata");
                 List<String> indices = getInitialIndicesWithoutWriteAlias(latestAliasAndIndicesLookup);
                 if (!indices.isEmpty()) {
                     IndicesAliasesRequestBuilder iarb = client.admin().indices().prepareAliases();
@@ -123,26 +126,35 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
                     for (String index: indices) {
 
                         String writeAlias = generateWriteAliasName(index);
-                        if (!writeAlias.trim().isEmpty()) {
+                        // Initial indices that were already rolled-over will not have write alias. We need to skip them.
+                        // In other words the writeAlias already exists (perhaps pointed to "-000002" index or older).
+                        if (!writeAlias.isEmpty() && !latestAliasAndIndicesLookup.containsKey(writeAlias)) {
                             iarb.addAliasAction(AliasActions.add()
                                     .index(index)
                                     .alias(writeAlias)
                                     .writeIndex(true));
+                            logger.trace("Prepare new index alias {} request for index {}", writeAlias, index);
                         }
                     }
 
-                    client.admin().indices().aliases(iarb.request(), new ActionListener<AcknowledgedResponse>() {
-                        @Override
-                        public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                            logger.debug("Write aliases added for the following indices: {}", indices);
-                        }
+                    IndicesAliasesRequest iar = iarb.request();
+                    if (!iar.getAliasActions().isEmpty()) {
+                        client.admin().indices().aliases(iar, new ActionListener<AcknowledgedResponse>() {
+                            @Override
+                            public void onResponse(AcknowledgedResponse acknowledgedResponse) {
+                                logger.debug("Write aliases added for the following indices: {}", indices);
+                            }
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            // TODO[lvlcek]: If there is an exception like "Alias already exists" then we need to ignore it
-                            logger.info("Error occurred when adding write aliases for the following indices: {}. {}", indices, e);
-                        }
-                    });
+                            @Override
+                            public void onFailure(Exception e) {
+                                // TODO[lvlcek]: If there is an exception like "Alias already exists" then we can ignore it.
+                                // However, if the index create request fails because the client does not have appropriate credentials
+                                // or any other serious reason then we need to escalate it.
+                                logger.warn("Error occurred when adding write aliases for the following indices: {}. {}", indices, e);
+                            }
+                        });
+                        logger.trace("Request to create new index aliases created");
+                    }
                 }
             }
         }

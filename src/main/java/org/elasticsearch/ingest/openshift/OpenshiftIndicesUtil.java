@@ -28,21 +28,21 @@ import java.util.stream.Collectors;
 public abstract class OpenshiftIndicesUtil {
 
     /**
-     * Replaces ending "-write" with "-00001".
+     * Does trim() and replaces "-write" suffix with "-00001".
      * @param aliasName assume write-alias
      * @return initial index name
      */
     public static String generateInitialIndexName(final String aliasName) {
-        return aliasName.replaceAll("-write$", "-000001");
+        return aliasName.trim().replaceAll("-write$", "-000001");
     }
 
     /**
-     * Replaces ending "-00001" with "-write".
+     * Does trim() and replaces "-00001" suffix with "-write".
      * @param index assume initialIndex
      * @return write-alias
      */
     public static String generateWriteAliasName(final String index) {
-        return index.replaceAll("-000001$", "-write");
+        return index.trim().replaceAll("-000001$", "-write");
     }
 
     public static boolean isInitialIndex(final String index) {
