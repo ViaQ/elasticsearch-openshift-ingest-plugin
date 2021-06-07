@@ -6,6 +6,7 @@
       cluster.put_settings:
         body:
           transient:
+            action.auto_create_index: "-*-write,+*"
             logger:
               org.elasticsearch.ingest.openshift: "TRACE"
               org.elasticsearch.action: "DEBUG"
