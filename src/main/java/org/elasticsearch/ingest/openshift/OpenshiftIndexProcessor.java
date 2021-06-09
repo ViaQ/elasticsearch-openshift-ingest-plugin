@@ -16,8 +16,6 @@
 
 package org.elasticsearch.ingest.openshift;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.AliasOrIndex;
@@ -42,7 +40,6 @@ import static org.elasticsearch.ingest.openshift.OpenshiftIndicesUtil.hasDataMod
  * Every instance of this plugin keeps its own lookup table of latest indices/aliases.
  */
 public final class OpenshiftIndexProcessor extends AbstractProcessor {
-    private static final Logger logger = LogManager.getLogger(OpenshiftIndexProcessor.class);
 
     public static final String TYPE = "openshift-ingestion-processor";
 
