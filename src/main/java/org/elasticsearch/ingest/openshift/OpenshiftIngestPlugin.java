@@ -103,7 +103,6 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
             synchronized (this) {
                 if (eventState.version() > clusterStateVersion) {
                     latestAliasAndIndicesLookup = eventState.metaData().getAliasAndIndexLookup();
-                    logger.trace("New version of metadata: {} > {}", eventState.version(), clusterStateVersion);
                     clusterStateVersion = eventState.version();
                 }
             }
@@ -118,7 +117,6 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
              */
             if (event.localNodeMaster()) {
 
-                logger.trace("Master node is handling new metadata");
                 List<String> indices = getInitialIndicesWithoutWriteAlias(latestAliasAndIndicesLookup);
                 if (!indices.isEmpty()) {
                     IndicesAliasesRequestBuilder iarb = client.admin().indices().prepareAliases();
@@ -133,7 +131,7 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
                                     .index(index)
                                     .alias(writeAlias)
                                     .writeIndex(true));
-                            logger.trace("Prepare new index alias {} request for index {}", writeAlias, index);
+                            logger.trace("Prepared write index alias {} request for index {}", writeAlias, index);
                         }
                     }
 
@@ -153,7 +151,6 @@ public class OpenshiftIngestPlugin extends Plugin implements IngestPlugin, Clust
                                 logger.warn("Error occurred when adding write aliases for the following indices: {}. {}", indices, e);
                             }
                         });
-                        logger.trace("Request to create new index aliases created");
                     }
                 }
             }
