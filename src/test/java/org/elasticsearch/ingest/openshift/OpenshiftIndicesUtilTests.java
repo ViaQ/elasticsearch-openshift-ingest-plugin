@@ -94,10 +94,17 @@ public class OpenshiftIndicesUtilTests extends ESTestCase {
         im.put("app-index3-000003", new AliasOrIndex.Index(createIndexMetaData("app-index3-000003",
                 new AliasInfo("app-alias1", true))));
 
+        // We also test index with alias that has no metadata, just the name.
+        // Aliases without any additional metadata can lead to NPE when client is iterating over them and does
+        // not check nullity of metadata when accessing it.
+        im.put("app-index4-000001", new AliasOrIndex.Index(createIndexMetaData("app-index4-000001",
+                new AliasInfo("app-alias1"))));
+
         indices = OpenshiftIndicesUtil.getInitialIndicesWithoutWriteAlias(im);
 
-        assertEquals(indices.size(), 1);
+        assertEquals(indices.size(), 2);
         assertTrue(indices.contains("app-index1-000001"));
+        assertTrue(indices.contains("app-index4-000001"));
     }
 
     private AliasMetaData createAliasMetaData(String alias) {
@@ -114,15 +121,22 @@ public class OpenshiftIndicesUtilTests extends ESTestCase {
         // fails: Throwable #1: java.lang.IllegalArgumentException: must specify numberOfShards for index [___]
 
         for (AliasInfo ai : alias) {
-            imBuilder.putAlias(AliasMetaData.builder(ai.alias).writeIndex(ai.writeAlias).build());
+            AliasMetaData.Builder amdt = AliasMetaData.builder(ai.alias);
+            if (ai.writeAlias != null) {
+                amdt.writeIndex(ai.writeAlias);
+            }
+            imBuilder.putAlias(amdt.build());
         }
 
         return imBuilder.build();
     }
 
     private class AliasInfo {
-        public final String alias;
-        public final Boolean writeAlias;
+        private String alias;
+        private Boolean writeAlias;
+        AliasInfo(String alias) {
+            this.alias = alias;
+        }
         AliasInfo(String alias, Boolean writeAlias) {
             this.alias = alias;
             this.writeAlias = writeAlias;

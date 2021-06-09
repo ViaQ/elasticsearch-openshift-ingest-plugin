@@ -74,7 +74,9 @@ public abstract class OpenshiftIndicesUtil {
                             if (!isInitialIndex(imd.getIndex().getName())) return false;
                             if (!hasDataModelPrefix(imd.getIndex().getName())) return false;
                             for (ObjectCursor<AliasMetaData> md: imd.getAliases().values()) {
-                                if (md.value.writeIndex()) {
+                                // Alias metadata can be undefined because the Builder does not require all MetaData to
+                                // be specified. See <org.elasticsearch.cluster.metadata.AliasMetaData.Builder>.
+                                if (md.value.writeIndex() != null && md.value.writeIndex()) {
                                     return false;
                                 }
                             }
