@@ -1,5 +1,5 @@
 ---
-"Verify we have cluster with expectd number of nodes":
+"Verify we have cluster with expected number of nodes":
   - do:
       cluster.health:
         wait_for_nodes: 2
