@@ -1,0 +1,110 @@
+---
+"Define pipeline, verify that additional index templates will be applied on matching indices.":
+  # Turn on logging in our package
+  # Logs are found in "build/cluster/integTestCluster node#/elasticsearch-6.8.6/logs"
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            action.auto_create_index: "-*-write,+*"
+            logger:
+              org.elasticsearch.ingest.openshift: "TRACE"
+              org.elasticsearch.action: "DEBUG"
+        flat_settings: true
+  - match: { acknowledged: true }
+
+  # Create simple pipeline with our Openshift processor
+  - do:
+      ingest.put_pipeline:
+        id: "openshift_schema"
+        body:  >
+          {
+            "description": "_description",
+            "processors": [
+              {
+                "openshift-ingestion-processor": {
+                }
+              }
+            ]
+          }
+  - match: { acknowledged: true }
+
+  - do:
+      ingest.get_pipeline:
+        id: "openshift_schema"
+  - match: { openshift_schema.description: "_description" }
+  - match: { openshift_schema.processors.0.openshift-ingestion-processor: {} }
+
+  # Elasticsearch Operator (https://github.com/openshift/elasticsearch-operato) create
+  # and push some index templates to make sure newly created indices will get some
+  # predefined index aliases (as of writing this is part of index_management.go).
+  #
+  # In this test we verify that such index templates are applied on indices
+  # if they are redirected to initial index (-000001) instead of passing them
+  # through write index alias.
+  - do:
+      indices.put_template:
+        name: "ocp-gen-infra"
+        body: >
+          {
+            "order" : 0,
+            "index_patterns" : [
+              "infra*"
+            ],
+            "settings" : {
+              "index" : {
+                "number_of_shards" : "3",
+                "number_of_replicas" : "1"
+              }
+            },
+            "mappings" : { },
+            "aliases" : {
+              "infra" : { },
+              "logs.infra" : { }
+            }
+          }
+  - match: { acknowledged: true }
+
+  # Index documents and pass it through the pipeline
+  - do:
+      create:
+        index:  infra-foo-write
+        type:   _doc
+        id:     1
+        body:   {
+          message: "Lorem ipsum dolor sit amet."
+        }
+        pipeline: openshift_schema
+
+  # Give cluster a short moment to create aliases.
+  # Waiting for condition that will not be met and timeout.
+  - do:
+      catch: request_timeout
+      cluster.health:
+        wait_for_nodes: 3
+        timeout: 500ms
+
+  - match: { number_of_nodes: 2 }
+
+  # Verify index aliases
+  # We expect both the aliases from index template and index alias by the ingest plugin
+  - do:
+      indices.get:
+        index: infra-foo-*
+
+  - match: { infra-foo-000001.aliases:  { "infra": {}, "logs.infra": {}, "infra-foo-write": { "is_write_index": true } }}
+
+  # =============================
+  # Clean up
+  - do:
+      ingest.delete_pipeline:
+        id: "openshift_schema"
+  - match: { acknowledged: true }
+
+  - do:
+      indices.delete:
+        index: "infra-foo-*"
+
+  - do:
+      indices.delete_template:
+        name: "ocp-gen-infra"
