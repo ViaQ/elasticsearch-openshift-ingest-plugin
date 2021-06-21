@@ -96,7 +96,7 @@ The gradle `esplugin` brings the following:
 - configurable integration [testing over REST API](https://github.com/elastic/elasticsearch/blob/v6.8.1/rest-api-spec/src/main/resources/rest-api-spec/test/README.asciidoc) (great collection of REST API integration tests can
 be found [here](https://github.com/elastic/elasticsearch/blob/v6.8.6/rest-api-spec/src/main/resources/rest-api-spec/test/)). 
 
-For Elasticsearch 6.8.1 it is:
+For Elasticsearch 6.8.1 it is the following which should be wrappered by gradlew:
 
 - JDK12
 - Gradle 5.5.1
@@ -104,6 +104,6 @@ For Elasticsearch 6.8.1 it is:
 Shell commands:
 
 ```shell
-> gradle clean
-> gradle check  # includes unit-testing
+> gradlew clean
+> gradlew check  # includes unit-testing
 ```
