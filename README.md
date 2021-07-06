@@ -21,7 +21,7 @@ will make sure that required new indices and relevant write-aliases are created 
 so that indices can be still correctly managed by Rollover API. 
 
 To use this plugin you need to:
-- Create a pipeline with this processor (see [integration test](tree/main/src/test/resources/rest-api-spec/test/ingest) cases for examples) 
+- Create a pipeline with this processor (see [integration test](/src/test/resources/rest-api-spec/test/ingest) cases for examples) 
 - Add pipeline field into bulk request created by collectors
 - Or create/modify index template and specify [dynamic setting](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/index-modules.html#dynamic-index-settings) `index.default_pipeline`
 
